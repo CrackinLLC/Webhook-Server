@@ -5,6 +5,17 @@ set -e  # Exit immediately if a command exits with a non-zero status
 TARGET=$1
 BRANCH=$2
 
+env > /tmp/webhook_env.log # DEBUGGING
+echo "Node version: $(node -v)" # DEBUGGING
+
+echo "Starting deployment for $TARGET on branch $BRANCH" # DEBUGGING
+echo "User: $(whoami)" # DEBUGGING
+echo "Home Directory: $HOME" # DEBUGGING
+echo "Current Directory: $(pwd)" # DEBUGGING
+echo "Node Version: $(node -v)" # DEBUGGING
+echo "NPM Version: $(npm -v)" # DEBUGGING
+echo "PATH: $PATH" # DEBUGGING
+
 case $TARGET in
   crackin)
     cd /home/relic/web/crackin.com/app
@@ -12,36 +23,16 @@ case $TARGET in
     # Ensure we're on the correct branch
     git fetch origin $BRANCH
     git reset --hard origin/$BRANCH
+    pm2 stop crackin
 
-    # Clean install
+    # Remove existing node_modules
     rm -rf node_modules
 
-    # Install dependencies
     npm install
-
-    # Check if npm install was successful
-    if [ $? -ne 0 ]; then
-      echo "npm install failed"
-      exit 1
-    fi
-
-    # Build the project
     npm run build
-
-    # Check if build was successful
-    if [ $? -ne 0 ]; then
-      echo "npm run build failed"
-      exit 1
-    fi
-
-    # Restart the application
     pm2 restart crackin
     ;;
-  # ... other cases
   *)
-    echo "Invalid argument"
-    exit 1
-    ;;
   rentalguru)
     cd /home/relic/web/my.rentalguru.ai/app
     git checkout --quiet $BRANCH
