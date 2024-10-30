@@ -32,7 +32,6 @@ case $TARGET in
     npm run build
     pm2 restart crackin
     ;;
-  *)
   rentalguru)
     cd /home/relic/web/my.rentalguru.ai/app
     git checkout --quiet $BRANCH
