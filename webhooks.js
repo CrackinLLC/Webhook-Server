@@ -17,20 +17,19 @@ app.use(
   })
 );
 
-// Enable CORS for all owned routes
-app.use(
-  cors({
-    origin: [
-      "https://jrsupply.us.com",
-      "https://missioncritical.us.com",
-      "https://crackin.com",
-      "https://my.rentalguru.com",
-      "https://rentalguru.com",
-    ],
-    methods: ["POST"], // Allowed methods
-    allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
-  })
-);
+// Configure CORS access across all domains
+const corsOptions = {
+  origin: [
+    "https://jrsupply.us.com",
+    "https://missioncritical.us.com",
+    "https://crackin.com",
+    "https://my.rentalguru.com",
+    "https://rentalguru.com",
+  ],
+  methods: ["POST"], // Allowed methods
+  allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
+};
+app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
 app.use(
