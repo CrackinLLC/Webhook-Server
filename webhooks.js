@@ -31,6 +31,7 @@ app.use(
     allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
   })
 );
+app.options("*", cors(corsOptions));
 
 app.use(
   express.json({
