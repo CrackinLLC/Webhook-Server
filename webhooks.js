@@ -2,6 +2,7 @@ const express = require("express");
 const crypto = require("crypto");
 const { exec } = require("child_process");
 const rateLimit = require("express-rate-limit");
+const cors = require("cors");
 
 const app = express();
 const port = 5000;
@@ -13,6 +14,21 @@ app.use(
     windowMs: 5 * 60 * 1000, // 10-minute window
     max: 200, // Limit each IP to 200 requests per window
     message: "Too many requests from this IP, please try again later.",
+  })
+);
+
+// Enable CORS for all owned routes
+app.use(
+  cors({
+    origin: [
+      "https://jrsupply.us.com",
+      "https://missioncritical.us.com",
+      "https://crackin.com",
+      "https://my.rentalguru.com",
+      "https://rentalguru.com",
+    ],
+    methods: ["POST"], // Allowed methods
+    allowedHeaders: ["Content-Type", "Authorization"], // Allowed headers
   })
 );
 
