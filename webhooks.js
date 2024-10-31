@@ -75,6 +75,26 @@ function verifySignature(req, res, next) {
   next();
 }
 
+// Message handling route without signature verification
+app.post("/message", (req, res) => {
+  const { origin, name, email, message } = req.body;
+
+  // Basic validation
+  if (!name || !email || !message || !origin) {
+    return res.status(400).json({ message: "All fields are required." });
+  }
+
+  // Send the message to Slack
+  sendToSlack({ origin, name, email, message })
+    .then(() => {
+      res.status(200).json({ message: "Message received" });
+    })
+    .catch((error) => {
+      console.error("Error sending message to Slack:", error);
+      res.status(500).json({ message: "Internal server error" });
+    });
+});
+
 // GitHub webhook route with signature verification
 app.post("/:target", verifySignature, (req, res) => {
   const event = req.githubEvent;
@@ -126,35 +146,13 @@ app.post("/:target", verifySignature, (req, res) => {
   );
 });
 
-// Message handling route without signature verification
-app.post("/message", (req, res) => {
-  const { origin, name, email, message } = req.body;
-
-  // Basic validation
-  if (!name || !email || !message || !origin) {
-    return res.status(400).json({ message: "All fields are required." });
-  }
-
-  // Send the message to Slack
-  sendToSlack({ origin, name, email, message })
-    .then(() => {
-      res.status(200).json({ message: "Message received" });
-    })
-    .catch((error) => {
-      console.error("Error sending message to Slack:", error);
-      res.status(500).json({ message: "Internal server error" });
-    });
-});
-
 // Function to send message to Slack
 function sendToSlack({ origin, name, email, message }) {
-  const slackWebhookUrl = process.env.SLACK_WEBHOOK_URL;
-
   const slackMessage = {
     text: `*New Contact Form Submission*\n*Site:* ${origin}\n*Name:* ${name}\n*Email:* ${email}\n*Message:* ${message}`,
   };
 
-  return axios.post(slackWebhookUrl, slackMessage);
+  return axios.post(process.env.SLACK_ENDPOINT, slackMessage);
 }
 
 app.listen(port, () => {
