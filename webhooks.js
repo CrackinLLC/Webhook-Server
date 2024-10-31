@@ -241,9 +241,11 @@ async function executeRebuild(target, branch) {
     const execOptions = { cwd: APP_DIR };
 
     // Stop the PM2 process
-    await runCLICommand(
-      `sudo /home/relic/web/pm2_actions.sh stop ${PM2_APP_NAME}`
-    );
+    if (PM2_APP_NAME !== "webhooks") {
+      await runCLICommand(
+        `sudo /home/relic/web/pm2_actions.sh stop ${PM2_APP_NAME}`
+      );
+    }
 
     // Ensure we're on the correct branch
     await runCLICommand(`git fetch origin ${branch}`, execOptions);
@@ -260,7 +262,9 @@ async function executeRebuild(target, branch) {
 
     // Start the PM2 process
     await runCLICommand(
-      `sudo /home/relic/web/pm2_actions.sh start ${PM2_APP_NAME}`
+      `sudo /home/relic/web/pm2_actions.sh ${
+        PM2_APP_NAME === "webhooks" ? "restart" : "start"
+      } ${PM2_APP_NAME}`
     );
     console.log("Deployment completed successfully for", target);
   } catch (error) {
