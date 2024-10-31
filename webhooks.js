@@ -86,7 +86,7 @@ app.post("/:target/:process?", (req, res) => {
   const target = req.params.target;
   const processType = req.params.process || "rebuild"; // Default to 'rebuild' if not provided
 
-  console.log("route handler", { target, processType });
+  console.log("route handler:", { target, processType });
 
   // Validate target
   const validTargets = ["crackin", "rentalguru", "missioncrit", "webhooks"];
