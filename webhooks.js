@@ -1,8 +1,11 @@
 require("dotenv").config(); // Load environment variables
 
+const path = require("path");
+const fs = require("fs");
+
 const express = require("express");
 const crypto = require("crypto");
-const { exec } = require("child_process");
+const { exec, execFile, spawn } = require("child_process");
 const rateLimit = require("express-rate-limit");
 const cors = require("cors");
 const axios = require("axios");
@@ -83,6 +86,8 @@ app.post("/:target/:process?", (req, res) => {
   const target = req.params.target;
   const processType = req.params.process || "rebuild"; // Default to 'rebuild' if not provided
 
+  console.log("route handler", { target, processType });
+
   // Validate target
   const validTargets = ["crackin", "rentalguru", "missioncrit", "webhooks"];
   if (!validTargets.includes(target)) {
@@ -93,7 +98,7 @@ app.post("/:target/:process?", (req, res) => {
   // Process routing
   switch (processType) {
     case "rebuild":
-      handleRebuild(req, res, target);
+      handleRebuildRequest(req, res, target);
       break;
 
     case "slack-msg":
@@ -107,9 +112,9 @@ app.post("/:target/:process?", (req, res) => {
   }
 });
 
-function handleRebuild(req, res, target) {
+async function handleRebuildRequest(req, res, target) {
   // Verify GitHub signature
-  verifyGitHubSignature(req, res, () => {
+  verifyGitHubSignature(req, res, async () => {
     const event = req.githubEvent;
     const payload = req.body;
 
@@ -136,28 +141,131 @@ function handleRebuild(req, res, target) {
     const branch = ref.split("/").pop();
     console.log("Extracted branch:", branch);
 
-    // Only proceed if the branch is supported
-    const validBranches = ["main" /*, "staging"*/];
-    if (!validBranches.includes(branch)) {
-      console.log(`Branch ${branch} is not configured`);
+    // Validate target
+    if (
+      !["crackin", "rentalguru", "missioncrit", "webhooks"].includes(target)
+    ) {
+      console.error("Invalid target:", target);
+      return res.status(400).json({ message: "Invalid target" });
+    }
+
+    // Validate branch
+    if (!["main", "staging"].includes(branch)) {
+      console.log(`Branch ${branch} is not configured for deployment`);
       return res.status(200).json({ message: `Branch ${branch} not deployed` });
     }
 
-    exec(
-      `/home/relic/web/webhooks/commands.sh ${target} ${branch}`,
-      (err, stdout, stderr) => {
-        if (err) {
-          console.error(`Execution error: ${err}`);
-          return res.status(500).json({ message: "Internal server error" });
-        }
+    res.status(200).json({ message: "Deployment started" });
 
-        if (stdout) console.log(`STDOUT: ${stdout}`);
-        if (stderr) console.log(`STDERR: ${stderr}`);
-
-        res.status(200).json({ message: "Rebuild initiated" });
-      }
-    );
+    // Proceed with deployment asynchronously
+    process.nextTick(() => {
+      executeRebuild(target, branch);
+    });
   });
+}
+
+async function executeRebuild(target, branch) {
+  function runCLICommand(command, options = {}) {
+    return new Promise((resolve, reject) => {
+      console.log(`Executing command: ${command}`);
+      exec(command, options, (error, stdout, stderr) => {
+        if (error) {
+          console.error(`Command failed: ${command}`);
+          console.error(`Error: ${error.message}`);
+          console.error(`Stderr: ${stderr}`);
+          return reject(error);
+        }
+        console.log(`Command succeeded: ${command}`);
+        console.log(`Stdout: ${stdout}`);
+        resolve(stdout);
+      });
+    });
+  }
+
+  const BASE_DIR = "/home/relic/web";
+  let APP_DIR;
+  let PM2_APP_NAME;
+
+  switch (target) {
+    case "crackin":
+      if (branch === "main") {
+        APP_DIR = path.join(BASE_DIR, "crackin.com", "app");
+        PM2_APP_NAME = "crackin";
+      } else if (branch === "staging") {
+        APP_DIR = path.join(BASE_DIR, "crackin-staging", "app");
+        PM2_APP_NAME = "crackin-staging";
+      } else {
+        console.log(`Unsupported branch for crackin: ${branch}`);
+        return res
+          .status(200)
+          .json({ message: `Branch ${branch} not deployed` });
+      }
+      break;
+    case "rentalguru":
+      if (branch === "main") {
+        APP_DIR = path.join(BASE_DIR, "my.rentalguru.ai", "app");
+        PM2_APP_NAME = "rentalGuru";
+      } else {
+        console.log(`Unsupported branch for rentalguru: ${branch}`);
+        return res
+          .status(200)
+          .json({ message: `Branch ${branch} not deployed` });
+      }
+      break;
+    case "webhooks":
+      if (branch === "main") {
+        APP_DIR = path.join(BASE_DIR, "webhooks");
+        PM2_APP_NAME = "webhooks";
+      } else {
+        console.log(`Unsupported branch for webhooks: ${branch}`);
+        return res
+          .status(200)
+          .json({ message: `Branch ${branch} not deployed` });
+      }
+      break;
+    default:
+      console.error("Invalid target:", target);
+      return res.status(400).json({ message: "Invalid target" });
+  }
+
+  try {
+    // Navigate to the application directory
+    if (!fs.existsSync(APP_DIR)) {
+      console.error(`Application directory does not exist: ${APP_DIR}`);
+      return res
+        .status(500)
+        .json({ message: "Application directory not found" });
+    }
+
+    // Options for exec commands
+    const execOptions = { cwd: APP_DIR };
+
+    // Stop the PM2 process
+    await runCLICommand(
+      `sudo /home/relic/web/pm2_actions.sh stop ${PM2_APP_NAME}`
+    );
+
+    // Ensure we're on the correct branch
+    await runCLICommand(`git fetch origin ${branch}`, execOptions);
+    await runCLICommand(`git reset --hard origin/${branch}`, execOptions);
+
+    // Remove existing node_modules
+    await runCLICommand(`rm -rf node_modules`, execOptions);
+
+    // Install dependencies
+    await runCLICommand(`npm install`, execOptions);
+
+    // Build the application
+    await runCLICommand(`npm run build`, execOptions);
+
+    // Start the PM2 process
+    await runCLICommand(
+      `sudo /home/relic/web/pm2_actions.sh start ${PM2_APP_NAME}`
+    );
+    console.log("Deployment completed successfully for", target);
+  } catch (error) {
+    console.error("Deployment failed for", target, ":", error);
+  }
 }
 
 // Handle 'slack-msg' process
