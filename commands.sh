@@ -5,6 +5,13 @@ set -e  # Exit immediately if a command exits with a non-zero status
 TARGET=$1
 BRANCH=$2
 
+echo "Node version: $(node -v)" # DEBUGGING
+echo "Starting deployment for $TARGET on branch $BRANCH" # DEBUGGING
+echo "User: $(whoami)" # DEBUGGING
+echo "Home Directory: $HOME" # DEBUGGING
+echo "Current Directory: $(pwd)" # DEBUGGING
+echo "PATH: $PATH" # DEBUGGING
+
 # Check if TARGET and BRANCH are provided
 if [ -z "$TARGET" ] || [ -z "$BRANCH" ]; then
   echo "Usage: $0 [application_name] [branch]"
