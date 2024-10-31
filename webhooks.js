@@ -241,6 +241,7 @@ async function executeRebuild(target, branch) {
     const execOptions = { cwd: APP_DIR };
 
     // Stop the PM2 process
+    console.log("it is", PM2_APP_NAME);
     if (PM2_APP_NAME !== "webhooks") {
       await runCLICommand(
         `sudo /home/relic/web/pm2_actions.sh stop ${PM2_APP_NAME}`
