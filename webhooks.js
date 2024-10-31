@@ -240,8 +240,6 @@ async function executeRebuild(target, branch) {
     // Options for exec commands
     const execOptions = { cwd: APP_DIR };
 
-    // Test comment
-
     // Stop the PM2 process
     if (PM2_APP_NAME !== "webhooks") {
       await runCLICommand(
