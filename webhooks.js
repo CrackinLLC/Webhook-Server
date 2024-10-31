@@ -260,8 +260,8 @@ async function executeRebuild(target, branch) {
     // Build the application
     try {
       await runCLICommand(`npm run build`, execOptions);
-    } catch () {
-      console.log('App does not appear to have a build command.')
+    } catch {
+      console.log("App does not appear to have a build command.");
     }
 
     // Start the PM2 process
