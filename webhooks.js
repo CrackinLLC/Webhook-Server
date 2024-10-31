@@ -241,7 +241,6 @@ async function executeRebuild(target, branch) {
     const execOptions = { cwd: APP_DIR };
 
     // Stop the PM2 process
-    console.log("it is", PM2_APP_NAME);
     if (PM2_APP_NAME !== "webhooks") {
       await runCLICommand(
         `sudo /home/relic/web/pm2_actions.sh stop ${PM2_APP_NAME}`
@@ -259,7 +258,11 @@ async function executeRebuild(target, branch) {
     await runCLICommand(`npm install`, execOptions);
 
     // Build the application
-    await runCLICommand(`npm run build`, execOptions);
+    try {
+      await runCLICommand(`npm run build`, execOptions);
+    } catch () {
+      console.log('App does not appear to have a build command.')
+    }
 
     // Start the PM2 process
     await runCLICommand(
