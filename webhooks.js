@@ -204,7 +204,7 @@ async function executeRebuild(target, branch) {
     case "rentalguru":
       if (branch === "main") {
         APP_DIR = path.join(BASE_DIR, "my.rentalguru.ai", "app");
-        PM2_APP_NAME = "rentalGuru";
+        PM2_APP_NAME = "rentalguru";
       } else {
         console.log(`Unsupported branch for rentalguru: ${branch}`);
         return res
