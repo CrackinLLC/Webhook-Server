@@ -225,6 +225,7 @@ async function executeRebuild(target, branch) {
       break;
     case "missioncrit":
       APP_DIR = path.join(BASE_DIR, "missioncritical.us.com", "repo");
+      PM2_APP_NAME = "missioncrit";
       break;
     default:
       console.error("Invalid target:", target);
