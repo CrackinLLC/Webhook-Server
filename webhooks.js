@@ -267,8 +267,8 @@ async function executeRebuild(target, branch) {
         "public_html"
       );
 
-      await runCLICommand(`cp -a ${mcSource} ${mcDestination}`, execOptions);
-      await runCLICommand(`cp -a ${jrSource} ${jrDestination}`, execOptions);
+      await runCLICommand(`cp -R ${mcSource} ${mcDestination}`, execOptions);
+      await runCLICommand(`cp -R ${jrSource} ${jrDestination}`, execOptions);
     } else {
       // Remove existing node_modules
       await runCLICommand(`rm -rf node_modules`, execOptions);
