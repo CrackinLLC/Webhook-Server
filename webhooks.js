@@ -223,13 +223,16 @@ async function executeRebuild(target, branch) {
           .json({ message: `Branch ${branch} not deployed` });
       }
       break;
+    case "missioncrit":
+      APP_DIR = path.join(BASE_DIR, "missioncritical.us.com", "repo");
+      break;
     default:
       console.error("Invalid target:", target);
       return res.status(400).json({ message: "Invalid target" });
   }
 
   try {
-    // Navigate to the application directory
+    // Check to the application directory
     if (!fs.existsSync(APP_DIR)) {
       console.error(`Application directory does not exist: ${APP_DIR}`);
       return res
@@ -241,7 +244,7 @@ async function executeRebuild(target, branch) {
     const execOptions = { cwd: APP_DIR };
 
     // Stop the PM2 process
-    if (PM2_APP_NAME !== "webhooks") {
+    if (["crackin", "rentalguru"].includes(PM2_APP_NAME)) {
       await runCLICommand(
         `sudo /home/relic/web/pm2_actions.sh stop ${PM2_APP_NAME}`
       );
@@ -251,25 +254,47 @@ async function executeRebuild(target, branch) {
     await runCLICommand(`git fetch origin ${branch}`, execOptions);
     await runCLICommand(`git reset --hard origin/${branch}`, execOptions);
 
-    // Remove existing node_modules
-    await runCLICommand(`rm -rf node_modules`, execOptions);
+    if (PM2_APP_NAME === "missioncrit") {
+      const mcDestination = path.join(APP_DIR, "..", "public_html");
+      const jrDestination = path.join(
+        APP_DIR,
+        "..",
+        "..",
+        "jrsupply.us.com",
+        "public_html"
+      );
 
-    // Install dependencies
-    await runCLICommand(`npm install`, execOptions);
+      await runCLICommand(
+        `cp -a ${path.join(APP_DIR, "missioncritical", ".")} ${mcDestination}`,
+        execOptions
+      );
+      await runCLICommand(
+        `cp -a ${path.join(APP_DIR, "jrsupply", ".")} ${jrDestination}`,
+        execOptions
+      );
+    } else {
+      // Remove existing node_modules
+      await runCLICommand(`rm -rf node_modules`, execOptions);
 
-    // Build the application
-    try {
-      await runCLICommand(`npm run build`, execOptions);
-    } catch {
-      console.log("App does not appear to have a build command.");
+      // Install dependencies
+      await runCLICommand(`npm install`, execOptions);
+
+      // Build the application
+      try {
+        await runCLICommand(`npm run build`, execOptions);
+      } catch {
+        console.log("App does not appear to have a build command.");
+      }
     }
 
     // Start the PM2 process
-    await runCLICommand(
-      `sudo /home/relic/web/pm2_actions.sh ${
-        PM2_APP_NAME === "webhooks" ? "restart" : "start"
-      } ${PM2_APP_NAME}`
-    );
+    if (["crackin", "rentalguru", "webhooks"].includes(PM2_APP_NAME)) {
+      await runCLICommand(
+        `sudo /home/relic/web/pm2_actions.sh ${
+          PM2_APP_NAME === "webhooks" ? "restart" : "start"
+        } ${PM2_APP_NAME}`
+      );
+    }
     console.log("Deployment completed successfully for", target);
   } catch (error) {
     console.error("Deployment failed for", target, ":", error);
