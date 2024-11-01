@@ -256,6 +256,8 @@ async function executeRebuild(target, branch) {
     await runCLICommand(`git reset --hard origin/${branch}`, execOptions);
 
     if (PM2_APP_NAME === "missioncrit") {
+      const mcSource = path.join(APP_DIR, "missioncritical") + path.sep + ".";
+      const jrSource = path.join(APP_DIR, "jrsupply") + path.sep + ".";
       const mcDestination = path.join(APP_DIR, "..", "public_html");
       const jrDestination = path.join(
         APP_DIR,
@@ -265,14 +267,8 @@ async function executeRebuild(target, branch) {
         "public_html"
       );
 
-      await runCLICommand(
-        `cp -a ${path.join(APP_DIR, "missioncritical", ".")} ${mcDestination}`,
-        execOptions
-      );
-      await runCLICommand(
-        `cp -a ${path.join(APP_DIR, "jrsupply", ".")} ${jrDestination}`,
-        execOptions
-      );
+      await runCLICommand(`cp -a ${mcSource} ${mcDestination}`, execOptions);
+      await runCLICommand(`cp -a ${jrSource} ${jrDestination}`, execOptions);
     } else {
       // Remove existing node_modules
       await runCLICommand(`rm -rf node_modules`, execOptions);
