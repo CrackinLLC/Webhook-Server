@@ -329,7 +329,7 @@ function handleSlackMessage(req, res, target) {
 function sendToSlack(target, data) {
   // Map targets to Slack URLs
   const slackUrls = {
-    missioncrit: process.env.SLACK_ENDPOINT_MISSIONCRIT,
+    missioncrit: process.env.MISSIONCRIT_SLACK,
   };
 
   const slackUrl = slackUrls[target];
