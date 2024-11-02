@@ -1,4 +1,4 @@
-require("dotenv").config(); // Load environment variables
+require("dotenv").config();
 
 const path = require("path");
 const fs = require("fs");
@@ -14,7 +14,6 @@ const xss = require("xss");
 const app = express();
 const port = process.env.PORT || 5000;
 
-// Configure CORS
 const corsOptions = {
   origin: [
     "https://jrsupply.us.com",
@@ -30,10 +29,8 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.options("*", cors(corsOptions));
 
-// Trust proxy settings
 app.set("trust proxy", "loopback");
 
-// Rate limiter middleware
 const limiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5-minute window
   max: 200, // Limit each IP to 200 requests per window
@@ -41,7 +38,6 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Parse JSON bodies and store raw body for signature verification
 app.use(
   express.json({
     verify: (req, res, buf) => {
@@ -50,41 +46,9 @@ app.use(
   })
 );
 
-// Middleware to verify GitHub signatures
-function verifyGitHubSignature(req, res, next) {
-  const signature = req.headers["x-hub-signature-256"];
-  const event = req.headers["x-github-event"];
-  const rawBody = req.rawBody;
-
-  if (!signature) {
-    console.error("No signature provided");
-    return res.status(401).send("No signature provided");
-  }
-
-  // Compute HMAC using SHA-256
-  const hmac = crypto.createHmac("sha256", process.env.WEBHOOK_SECRET);
-  const digest = "sha256=" + hmac.update(rawBody).digest("hex");
-
-  // Use timingSafeEqual to prevent timing attacks
-  const bufferSignature = Buffer.from(signature);
-  const bufferDigest = Buffer.from(digest);
-
-  if (
-    bufferSignature.length !== bufferDigest.length ||
-    !crypto.timingSafeEqual(bufferSignature, bufferDigest)
-  ) {
-    console.error("Invalid signature");
-    return res.status(401).send("Invalid signature");
-  }
-
-  req.githubEvent = event;
-  next();
-}
-
-// Route handler
 app.post("/:target/:process?", (req, res) => {
   const target = req.params.target;
-  const processType = req.params.process || "rebuild"; // Default to 'rebuild' if not provided
+  const processType = req.params.process || "rebuild";
 
   console.log("route handler:", { target, processType });
 
@@ -155,9 +119,8 @@ async function handleRebuildRequest(req, res, target) {
       return res.status(200).json({ message: `Branch ${branch} not deployed` });
     }
 
+    // Send success back to Gihub and proceed with rest of the deployment
     res.status(200).json({ message: "Deployment started" });
-
-    // Proceed with deployment asynchronously
     process.nextTick(() => {
       executeRebuild(target, branch);
     });
@@ -233,16 +196,16 @@ async function executeRebuild(target, branch) {
   }
 
   try {
-    // Check to the application directory
+    // Begin running terminal commands
+    const execOptions = { cwd: APP_DIR };
+
+    // Confirm that the application directory exists
     if (!fs.existsSync(APP_DIR)) {
       console.error(`Application directory does not exist: ${APP_DIR}`);
       return res
         .status(500)
         .json({ message: "Application directory not found" });
     }
-
-    // Options for exec commands
-    const execOptions = { cwd: APP_DIR };
 
     // Stop the PM2 process
     if (["crackin", "rentalguru"].includes(PM2_APP_NAME)) {
@@ -301,23 +264,21 @@ async function executeRebuild(target, branch) {
   }
 }
 
-// Handle 'slack-msg' process
 function handleSlackMessage(req, res, target) {
-  // No signature verification needed
   const { name, email, message } = req.body;
 
-  // Basic validation and sanitization
+  // Basic validation
   if (!name || !email || !message) {
     return res.status(400).json({ message: "All fields are required." });
   }
 
+  // Sanitize values
   const sanitizedData = {
     name: xss(name),
     email: xss(email),
     message: xss(message),
   };
 
-  // Send the message to Slack
   sendToSlack(target, sanitizedData)
     .then(() => {
       res.status(200).json({ message: "Message received" });
@@ -330,7 +291,6 @@ function handleSlackMessage(req, res, target) {
 
 // Function to send message to Slack based on target
 function sendToSlack(target, data) {
-  // Map targets to Slack URLs
   const slackUrls = {
     missioncrit: process.env.MISSIONCRIT_SLACK,
   };
@@ -348,6 +308,37 @@ function sendToSlack(target, data) {
   };
 
   return axios.post(slackUrl, slackMessage);
+}
+
+// Middleware to verify GitHub signatures
+function verifyGitHubSignature(req, res, next) {
+  const signature = req.headers["x-hub-signature-256"];
+  const event = req.headers["x-github-event"];
+  const rawBody = req.rawBody;
+
+  if (!signature) {
+    console.error("No signature provided");
+    return res.status(401).send("No signature provided");
+  }
+
+  // Compute HMAC using SHA-256
+  const hmac = crypto.createHmac("sha256", process.env.WEBHOOK_SECRET);
+  const digest = "sha256=" + hmac.update(rawBody).digest("hex");
+
+  // Use timingSafeEqual to prevent timing attacks
+  const bufferSignature = Buffer.from(signature);
+  const bufferDigest = Buffer.from(digest);
+
+  if (
+    bufferSignature.length !== bufferDigest.length ||
+    !crypto.timingSafeEqual(bufferSignature, bufferDigest)
+  ) {
+    console.error("Invalid signature");
+    return res.status(401).send("Invalid signature");
+  }
+
+  req.githubEvent = event;
+  next();
 }
 
 app.listen(port, () => {
