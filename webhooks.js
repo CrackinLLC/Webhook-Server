@@ -1,5 +1,4 @@
-require("dotenv").config();
-
+const { config } = require("dotenv");
 const path = require("path");
 const fs = require("fs");
 
@@ -12,7 +11,9 @@ const axios = require("axios");
 const xss = require("xss");
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT;
+
+config({ path: path.join(__dirname, ".env") });
 
 const corsOptions = {
   origin: [
@@ -292,7 +293,7 @@ function handleSlackMessage(req, res, target) {
 // Function to send message to Slack based on target
 function sendToSlack(target, data) {
   const slackUrls = {
-    missioncrit: process.env.MISSIONCRIT_SLACK,
+    missioncrit: process.env.SLACK_MISSIONCRIT,
   };
 
   const slackUrl = slackUrls[target];
@@ -322,7 +323,7 @@ function verifyGitHubSignature(req, res, next) {
   }
 
   // Compute HMAC using SHA-256
-  const hmac = crypto.createHmac("sha256", process.env.WEBHOOK_SECRET);
+  const hmac = crypto.createHmac("sha256", process.env.SIGNATURE_SECRET);
   const digest = "sha256=" + hmac.update(rawBody).digest("hex");
 
   // Use timingSafeEqual to prevent timing attacks
